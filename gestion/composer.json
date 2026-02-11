@@ -1,0 +1,11 @@
+{
+  "autoload": {
+    "psr-4": {
+      "gestion\\": "./src"
+    }
+  },
+  "require": {
+    "illuminate/database": "^8.73.0",
+    "php": ">=7.3"
+  }
+}
