@@ -18,31 +18,6 @@ Application web développée en PHP pour gérer les opérations d'un restaurant.
 
 ## Fonctionnalités Implémentées
 
-### 1. **Authentification**
-    - Connexion du serveur à la base de données via login/mot de passe du SGBD
-    - Gestion centralisée des transactions
-
-### 2. **Gestion des Réservations**
-   - Réserver une table disponible à une date et heure données
-   - Annuler une réservation non consommée
-   - Afficher le statut des tables et des réservations
-
-### 3. **Gestion des Commandes**
-   - Commander des plats disponibles pour une réservation donnée
-   - Enregistrer la quantité et le prix unitaire de chaque plat
-   - Tracker les quantités servies par jour
-
-### 4. **Gestion des Plats**
-   - Modifier le prix unitaire d'un plat
-   - Modifier la quantité servie par jour
-   - Consulter les plats disponibles et leurs stocks
-
-### 5. **Gestion de l'Encaissement**
-   - Calculer le montant total d'une réservation consommée
-   - Enregistrer la date et l'heure d'encaissement
-   - Enregistrer le mode de paiement
-   - Mettre à jour le statut de la réservation
-
 ---
 
 ## Architecture Technique
@@ -64,9 +39,9 @@ Application web développée en PHP pour gérer les opérations d'un restaurant.
 - `numres` (INT, PK, AUTO_INCREMENT) : Identifiant unique de la réservation
 - `numtab` (INT, FK) : Référence à la table réservée
 - `serveur` (VARCHAR) : Nom du serveur responsable
-- `datres` (DATE) : Date et heure de la réservation
+- `datres` (DATETIME) : Date et heure de la réservation
 - `nbpers` (INT) : Nombre de personnes
-- `datpaie` (DATE) : Date et heure du paiement
+- `datpaie` (DATETIME) : Date et heure du paiement
 - `modpaie` (VARCHAR) : Mode de paiement (Carte, Chèque, Espèces)
 - `montcom` (DECIMAL) : Montant total de la commande
 
@@ -97,58 +72,45 @@ Application web développée en PHP pour gérer les opérations d'un restaurant.
 ### Configuration Initiale
 
 1. **Modifier le fichier de configuration** :
-   - Éditer `ressources/conf/conf.ini`
-   - Ajouter vos identifiants de base de données (username, password, host, dbname)
 
-   ```ini
-   [database]
-   host = localhost
-   dbname = gestion_restaurant
-   username = votre_username
-   password = votre_password
-   ```
+**Éditer le fichier** `ressources/conf/conf.ini` :
+
+```ini
+[database]
+host = localhost
+dbname = gestion_restaurant
+username = votre_username
+password = votre_password
+charset = utf8mb4
+```
+
+**Remplacer :**
+- `votre_username` : votre utilisateur MySQL
+- `votre_password` : votre mot de passe MySQL
 
 2. **Créer la base de données** :
-   - Se connecter à PhpMyAdmin
-   - Importer le fichier SQL fourni (ressources/repo/[fichier].sql)
-   - Cela créera toutes les tables avec les contraintes d'intégrité référentielle
+
+**Via phpMyAdmin**
+1. Se connecter à phpMyAdmin
+2. Créer le nom de la base de donnèes dans le fichier .ini
+3. Cliquer sur "Importer"
+4. Sélectionner le fichier `ressources/repo/GestionResto.sql`
+4. Cliquer sur "Exécuter"
    - Les données de démonstration incluent :
-     - 10 tables (numéros 10-19) avec 2 à 8 places
-     - 16 plats disponibles (entrées, viandes, poisson, desserts, fromage)
-     - 7 réservations avec des commandes variées
+      - 10 tables (numéros 10-19) avec 2 à 8 places.
+      - 16 plats disponibles (entrées, viandes, poisson, desserts, fromage).
+      - 7 réservations avec des commandes variées.
 
-### Flux d'Utilisation Typique
+## Améliorations Techniques de la Base de Données
 
-```
-1. Connexion du serveur (login/password)
-   ↓
-2. Afficher les tables disponibles
-   ↓
-3. Choisir une opération :
-   - Réserver une table → Faire une commande → Encaisser
-   - Annuler une réservation
-   - Modifier les prix/quantités des plats
-```
+### 1. DATETIME au lieu de DATE
+**Pourquoi :** Pour sauvegarder l'heure exacte des réservations (12:30, 19:00...) et éviter les conflits sur la même table le même jour.
 
----
+### 2. Clés Étrangères (Foreign Keys)
+**Pourquoi :** Pour empêcher les erreurs d'intégrité (ex: commander un plat qui n'existe pas, supprimer une table avec des réservations actives).
 
-## Sécurité et Transactions
+### 3. Encodage utf8mb4
+**Pourquoi :** Pour que les accents français s'affichent correctement (é, à, è, ç) au lieu de caractères bizarres.
 
-- **Utilisation de PDO** : Protection contre les injections SQL via requêtes préparées
-- **Mode Transactionnel** : Chaque opération critique utilise BEGIN/COMMIT/ROLLBACK
-- **Gestion des Erreurs** : Rollback automatique en cas d'erreur pour éviter l'incohérence des données
-- **Concurrence** : Verrous optimiste/pessimiste pour éviter les conflits entre serveurs
-
----
-
-## Points Clés d'Implémentation
-
-### Intégrité Référentielle
-- **FK sur RESERVATION** : référence TABL (table réservée)
-- **FK sur COMMANDE** : références RESERVATION et PLAT (rattachement à la réservation et au plat)
-- **Contraintes** : ON DELETE RESTRICT pour éviter les suppressions en cascade non autorisées
-- **Clé composite dans COMMANDE** : (numres, numplat) pour éviter les doublons
-
----
-
-**Développé par Nathan Yvon et Samy Cherchari DWM2**
+### 4. DECIMAL au lieu de FLOAT
+**Pourquoi :** Pour des calculs de prix précis au centime près, sans erreurs d'arrondi (8.50 × 3 = 25.50 exactement).
