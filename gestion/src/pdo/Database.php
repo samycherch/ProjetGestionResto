@@ -46,6 +46,11 @@ class Database
                     PDO::ATTR_DEFAULT_FETCH_MODE,
                     PDO::FETCH_ASSOC,
                 );
+                // Désactiver l'autocommit pour laisser l'application contrôler les transactions
+                self::$instance->setAttribute(
+                    PDO::ATTR_AUTOCOMMIT,
+                    false,
+                );
             } catch (PDOException $e) {
                 throw new \Exception(
                     "Erreur de connexion à la base : " . $e->getMessage(),
@@ -54,5 +59,57 @@ class Database
         }
 
         return self::$instance;
+    }
+
+    /**
+     * Démarre une transaction
+     */
+    public static function beginTransaction(): void
+    {
+        try {
+            self::getConnection()->beginTransaction();
+        } catch (PDOException $e) {
+            throw new \Exception(
+                "Erreur au démarrage de la transaction : " . $e->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * Valide la transaction en cours
+     */
+    public static function commit(): void
+    {
+        try {
+            self::getConnection()->commit();
+        } catch (PDOException $e) {
+            throw new \Exception(
+                "Erreur lors de la validation de la transaction : " .
+                    $e->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * Annule la transaction en cours
+     */
+    public static function rollback(): void
+    {
+        try {
+            self::getConnection()->rollBack();
+        } catch (PDOException $e) {
+            throw new \Exception(
+                "Erreur lors de l'annulation de la transaction : " .
+                    $e->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * Vérifie si une transaction est active
+     */
+    public static function inTransaction(): bool
+    {
+        return self::getConnection()->inTransaction();
     }
 }
