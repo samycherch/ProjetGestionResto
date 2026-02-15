@@ -1,10 +1,7 @@
 <?php
 session_start();
 
-require_once "src/pdo/Database.php";
-require_once "src/repo/ReservationRepository.php";
-require_once "src/repo/PlatRepository.php";
-require_once "src/repo/CommandeRepository.php";
+require_once __DIR__ . "/../../vendor/autoload.php";
 
 use gestion\pdo\Database;
 use gestion\repo\ReservationRepository;
@@ -21,6 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $numres = (int)$_POST['numres'] ?? 0;
     if ($numres > 0) {
         try {
+            Database::beginTransaction();
+            
             $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
             if (!$reservationSelectionnee) {
                 $message = "Réservation introuvable";
@@ -33,7 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // Récupérer les commandes existantes
                 $commandesExistantes = CommandeRepository::obtenirCommandesReservation($numres);
             }
+            
+            Database::commit();
         } catch (Exception $e) {
+            Database::rollback();
             $message = "Erreur: " . $e->getMessage();
             $messageType = "error";
         }
@@ -69,9 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $messageType = "error";
         
         // Garder la réservation sélectionnée en cas d'erreur
-        if ($numres) {
-            $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
-            $commandesExistantes = CommandeRepository::obtenirCommandesReservation($numres);
+        if (isset($numres) && $numres) {
+            try {
+                Database::beginTransaction();
+                $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
+                $commandesExistantes = CommandeRepository::obtenirCommandesReservation($numres);
+                Database::commit();
+            } catch (Exception $e2) {
+                Database::rollback();
+            }
         }
     }
 }
@@ -98,21 +106,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $message = "Erreur: " . $e->getMessage();
         $messageType = "error";
         
-        if ($numres) {
-            $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
-            $commandesExistantes = CommandeRepository::obtenirCommandesReservation($numres);
+        if (isset($numres) && $numres) {
+            try {
+                Database::beginTransaction();
+                $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
+                $commandesExistantes = CommandeRepository::obtenirCommandesReservation($numres);
+                Database::commit();
+            } catch (Exception $e2) {
+                Database::rollback();
+            }
         }
     }
 }
 
-// Récupérer les réservations non encore encaissées
-$pdo = Database::getConnection();
-$stmt = $pdo->query("SELECT * FROM reservation WHERE datpaie IS NULL ORDER BY datres");
-$reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Récupérer les plats disponibles
-$platsDisponibles = PlatRepository::obtenirPlatsDisponibles();
-
+// Récupérer les réservations non encore encaissées et les plats disponibles
+try {
+    Database::beginTransaction();
+    $pdo = Database::getConnection();
+    $stmt = $pdo->query("SELECT r.*, s.prenom, s.nom, s.image FROM reservation r 
+                         LEFT JOIN serveur s ON r.numserv = s.numserv 
+                         WHERE r.datpaie IS NULL ORDER BY r.datres");
+    $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Récupérer les plats disponibles
+    $platsDisponibles = PlatRepository::obtenirPlatsDisponibles();
+    Database::commit();
+} catch (Exception $e) {
+    Database::rollback();
+    $reservationsNonPayees = [];
+    $platsDisponibles = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -120,12 +143,13 @@ $platsDisponibles = PlatRepository::obtenirPlatsDisponibles();
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Commander des Plats</title>
-  <link rel="stylesheet" href="ressources/css/style.css">
+  <link rel="stylesheet" href="../ressources/css/style.css?v=2.2">
 </head>
 <body>
+  <div class="container">
   <h1>Commander des Plats</h1>
   
-  <p><a href="index.php">Retour à l'accueil</a></p>
+  <p><a href="../index.php">Retour à l'accueil</a></p>
 
   <hr>
 
@@ -153,7 +177,7 @@ $platsDisponibles = PlatRepository::obtenirPlatsDisponibles();
               #<?php echo $res['numres']; ?> - 
               Table <?php echo $res['numtab']; ?> - 
               <?php echo date('d/m/Y H:i', strtotime($res['datres'])); ?> - 
-              <?php echo htmlspecialchars($res['serveur']); ?> - 
+              <?php echo htmlspecialchars(($res['prenom'] ?? '') . ' ' . ($res['nom'] ?? '')); ?> - 
               <?php echo $res['nbpers']; ?> pers.
             </option>
           <?php endforeach; ?>
@@ -177,7 +201,7 @@ $platsDisponibles = PlatRepository::obtenirPlatsDisponibles();
     <ul>
       <li><strong>Table:</strong> <?php echo $reservationSelectionnee['numtab']; ?></li>
       <li><strong>Date/Heure:</strong> <?php echo date('d/m/Y H:i', strtotime($reservationSelectionnee['datres'])); ?></li>
-      <li><strong>Serveur:</strong> <?php echo htmlspecialchars($reservationSelectionnee['serveur']); ?></li>
+      <li><strong>Serveur:</strong> <?php echo htmlspecialchars(($reservationSelectionnee['prenom'] ?? '') . ' ' . ($reservationSelectionnee['nom'] ?? '')); ?></li>
       <li><strong>Nombre de personnes:</strong> <?php echo $reservationSelectionnee['nbpers']; ?></li>
     </ul>
 
@@ -270,6 +294,13 @@ $platsDisponibles = PlatRepository::obtenirPlatsDisponibles();
     <?php endif; ?>
 
   <?php endif; ?>
+
+</div>
+
+<footer>
+  <p>&copy; <?= date('Y'); ?> Resto - Gestion des Réservations</p>
+  <p class="footer-small">Développé par Samy Cherchari et Nathan Yvon</p>
+</footer>
 
 </body>
 </html>

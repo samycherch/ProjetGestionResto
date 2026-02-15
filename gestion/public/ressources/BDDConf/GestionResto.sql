@@ -4,6 +4,26 @@ SET foreign_key_checks = 0;
 SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 
 -- ---------------------------------------------------------
+-- Table : serveur
+-- ---------------------------------------------------------
+DROP TABLE IF EXISTS `serveur`;
+CREATE TABLE `serveur` (
+  `numserv` int(11) NOT NULL AUTO_INCREMENT,
+  `nom` varchar(50) NOT NULL,
+  `prenom` varchar(50) NOT NULL,
+  `image` varchar(255),
+  `actif` tinyint(1) DEFAULT 1,
+  PRIMARY KEY (`numserv`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `serveur` VALUES
+(1,'Strife','Cloud','serveur1.jpg',1),
+(2,'Gainsborough','Aerith','serveur2.jpg',1),
+(3,'Feral','Léo','serveur3.jpg',1),
+(4,'Yvon','Nathan','serveur4.jpg',1),
+(5,'Cherchari','Samy','serveur5.jpg',1);
+
+-- ---------------------------------------------------------
 -- Table : tabl
 -- ---------------------------------------------------------
 DROP TABLE IF EXISTS `tabl`;
@@ -55,24 +75,25 @@ DROP TABLE IF EXISTS `reservation`;
 CREATE TABLE `reservation` (
   `numres` int(11) NOT NULL AUTO_INCREMENT,
   `numtab` int(11),
-  `serveur` varchar(35),
-  `datres` datetime, -- Correction : DATETIME pour garder l'heure
+  `numserv` int(11),
+  `datres` datetime,
   `nbpers` int(2),
-  `datpaie` datetime, -- Correction : DATETIME pour garder l'heure
+  `datpaie` datetime,
   `modpaie` varchar(15),
   `montcom` decimal(8,2) DEFAULT NULL,
   PRIMARY KEY (`numres`),
-  CONSTRAINT `fk_res_tab` FOREIGN KEY (`numtab`) REFERENCES `tabl` (`numtab`)
+  CONSTRAINT `fk_res_tab` FOREIGN KEY (`numtab`) REFERENCES `tabl` (`numtab`),
+  CONSTRAINT `fk_res_serv` FOREIGN KEY (`numserv`) REFERENCES `serveur` (`numserv`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO `reservation` VALUES
-(100,10,'Paul','2021-09-10 19:00:00',2,'2021-09-10 20:50:00','Carte',null),
-(101,11,'Albert','2021-09-10 20:00:00',4,'2021-09-10 21:20:00','Chèque',null),
-(102,17,'Xavier','2021-09-10 18:00:00',2,'2021-09-10 20:55:00','Carte',null),
-(103,12,'Beatrice','2021-09-10 19:00:00',2,'2021-09-10 21:10:00','Espèces',null),
-(104,18,'Lola','2021-09-10 19:00:00',1,'2021-09-10 21:00:00','Chèque',null),
-(105,10,'Lola1','2021-09-10 19:00:00',2,'2021-09-10 20:45:00','Carte',null),
-(106,14,'Paul1','2021-10-11 19:00:00',2,'2021-10-11 22:45:00','Carte',null);
+(100,10,1,'2021-09-10 19:00:00',2,'2021-09-10 20:50:00','Carte',null),
+(101,11,2,'2021-09-10 20:00:00',4,'2021-09-10 21:20:00','Chèque',null),
+(102,17,1,'2021-09-10 18:00:00',2,'2021-09-10 20:55:00','Carte',null),
+(103,12,2,'2021-09-10 19:00:00',2,'2021-09-10 21:10:00','Espèces',null),
+(104,18,1,'2021-09-10 19:00:00',1,'2021-09-10 21:00:00','Chèque',null),
+(105,10,2,'2021-09-10 19:00:00',2,'2021-09-10 20:45:00','Carte',null),
+(106,14,1,'2021-10-11 19:00:00',2,'2021-10-11 22:45:00','Carte',null);
 
 -- ---------------------------------------------------------
 -- Table : commande

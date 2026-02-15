@@ -12,12 +12,12 @@ class ReservationRepository
      * Crée une nouvelle réservation
      *
      * @param int $numtab Numéro de la table
-     * @param string $serveur Nom du serveur
+     * @param int $numserv Numéro du serveur
      * @param string $dateHeure Format: 'YYYY-MM-DD HH:MM:SS'
      * @param int $nbPersonnes Nombre de personnes
      * @return int Numéro de la réservation créée
      */
-    public static function creeReservation(int $numtab,string $serveur,string $dateHeure,int $nbPersonnes): int {
+    public static function creeReservation(int $numtab, int $numserv, string $dateHeure, int $nbPersonnes): int {
         $pdo = Database::getConnection();
 
         try {
@@ -25,6 +25,12 @@ class ReservationRepository
             $table = TableRepository::obtenirTableParId($numtab);
             if (!$table) {
                 throw new Exception("Table numéro $numtab inexistante");
+            }
+
+            // Vérifier que le serveur existe
+            $server = \gestion\repo\ServerRepository::obtenirServerParId($numserv);
+            if (!$server) {
+                throw new Exception("Serveur numéro $numserv inexistant");
             }
 
             // Vérifier que la table a assez de places
@@ -49,9 +55,9 @@ class ReservationRepository
 
             // Insérer la réservation
             $stmt = $pdo->prepare(
-                "INSERT INTO reservation (numtab, serveur, datres, nbpers) VALUES (?, ?, ?, ?)"
+                "INSERT INTO reservation (numtab, numserv, datres, nbpers) VALUES (?, ?, ?, ?)"
             );
-            $stmt->execute([$numtab, $serveur, $dateHeure, $nbPersonnes]);
+            $stmt->execute([$numtab, $numserv, $dateHeure, $nbPersonnes]);
 
             return (int) $pdo->lastInsertId();
         } catch (Exception $e) {
@@ -65,7 +71,9 @@ class ReservationRepository
     public static function obtenirReservationParId(int $numres): ?array
     {
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT * FROM reservation WHERE numres = ?");
+        $stmt = $pdo->prepare("SELECT r.*, s.prenom, s.nom, s.image FROM reservation r 
+                               LEFT JOIN serveur s ON r.numserv = s.numserv 
+                               WHERE r.numres = ?");
         $stmt->execute([$numres]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result ?: null;
@@ -77,18 +85,22 @@ class ReservationRepository
     public static function obtenirToutesLesReservations(): array
     {
         $pdo = Database::getConnection();
-        $stmt = $pdo->query("SELECT * FROM reservation ORDER BY datres DESC");
+        $stmt = $pdo->query("SELECT r.*, s.prenom, s.nom, s.image FROM reservation r 
+                             LEFT JOIN serveur s ON r.numserv = s.numserv 
+                             ORDER BY r.datres DESC");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
      * Récupère les réservations d'un serveur
      */
-    public static function obtenirReservationsParServeur(string $serveur): array
+    public static function obtenirReservationsParServeur(int $numserv): array
     {
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT * FROM reservation WHERE serveur = ? ORDER BY datres DESC");
-        $stmt->execute([$serveur]);
+        $stmt = $pdo->prepare("SELECT r.*, s.prenom, s.nom FROM reservation r 
+                               LEFT JOIN serveur s ON r.numserv = s.numserv 
+                               WHERE r.numserv = ? ORDER BY r.datres DESC");
+        $stmt->execute([$numserv]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -117,7 +129,9 @@ class ReservationRepository
         $pdo = Database::getConnection();
         $now = (new \DateTime())->format('Y-m-d H:i:s');
         $stmt = $pdo->prepare(
-            "SELECT * FROM reservation WHERE datres > ? ORDER BY datres ASC"
+            "SELECT r.*, s.prenom, s.nom, s.image, s.actif FROM reservation r 
+             LEFT JOIN serveur s ON r.numserv = s.numserv 
+             WHERE r.datres > ? ORDER BY r.datres ASC"
         );
         $stmt->execute([$now]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -171,7 +185,7 @@ class ReservationRepository
         $setClause = [];
         $values = [];
         foreach ($data as $key => $value) {
-            if (in_array($key, ['numtab', 'serveur', 'datres', 'nbpers', 'datpaie', 'modpaie', 'montcom'])) {
+            if (in_array($key, ['numtab', 'numserv', 'datres', 'nbpers', 'datpaie', 'modpaie', 'montcom'])) {
                 $setClause[] = "$key = ?";
                 $values[] = $value;
             }
@@ -266,5 +280,30 @@ class ReservationRepository
             'modpaie' => $modpaie,
             'montcom' => $montcom,
         ]);
+    }
+
+    public static function obtenirReservationsNonEncaisseesTransaction(): array
+    {
+        try {
+            Database::beginTransaction();
+            $reservations = self::obtenirReservationsNonEncaissees();
+            Database::commit();
+            return $reservations;
+        } catch (Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Récupère les réservations non encore encaissées (sans transaction - pour usage interne)
+     */
+    public static function obtenirReservationsNonEncaissees(): array
+    {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->query("SELECT r.*, s.prenom, s.nom, s.image FROM reservation r 
+                             LEFT JOIN serveur s ON r.numserv = s.numserv 
+                             WHERE r.datpaie IS NULL ORDER BY r.datres");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
