@@ -75,8 +75,9 @@ $reservationsAVenir = ReservationRepository::obtenirReservationsAVenir();
   
   <p>
     <a href="commander.php">Commander des plats</a> | 
-    <a href="annuler.php">Annuler une réservation</a>
-    <a href="modifierPlat.php">Modifier les plats</a>
+    <a href="annuler.php">Annuler une réservation</a> |
+    <a href="modifierPlat.php">Modifier les plats</a> |
+    <a href='encaisser.php'>Encaisser une réservation</a>
   </p>
 
   <hr>
