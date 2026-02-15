@@ -165,6 +165,10 @@ collation = "utf8_unicode_ci"
 
 ## Utilisation de l'Application
 
+## Avant le site
+
+- **Utiliser Composer** : écrire dans le dans le terminal dans le dossier `gestion` :  `composer dump-autoload`
+
 ### Accès au site
 
 - **Avec WSL** : `http://gestionresto.localhost`
