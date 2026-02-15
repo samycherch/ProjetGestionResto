@@ -123,7 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 try {
     Database::beginTransaction();
     $pdo = Database::getConnection();
-    $stmt = $pdo->query("SELECT * FROM reservation WHERE datpaie IS NULL ORDER BY datres");
+    $stmt = $pdo->query("SELECT r.*, s.prenom, s.nom, s.image FROM reservation r 
+                         LEFT JOIN serveur s ON r.numserv = s.numserv 
+                         WHERE r.datpaie IS NULL ORDER BY r.datres");
     $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Récupérer les plats disponibles
@@ -175,7 +177,7 @@ try {
               #<?php echo $res['numres']; ?> - 
               Table <?php echo $res['numtab']; ?> - 
               <?php echo date('d/m/Y H:i', strtotime($res['datres'])); ?> - 
-              <?php echo htmlspecialchars($res['serveur']); ?> - 
+              <?php echo htmlspecialchars(($res['prenom'] ?? '') . ' ' . ($res['nom'] ?? '')); ?> - 
               <?php echo $res['nbpers']; ?> pers.
             </option>
           <?php endforeach; ?>
@@ -199,7 +201,7 @@ try {
     <ul>
       <li><strong>Table:</strong> <?php echo $reservationSelectionnee['numtab']; ?></li>
       <li><strong>Date/Heure:</strong> <?php echo date('d/m/Y H:i', strtotime($reservationSelectionnee['datres'])); ?></li>
-      <li><strong>Serveur:</strong> <?php echo htmlspecialchars($reservationSelectionnee['serveur']); ?></li>
+      <li><strong>Serveur:</strong> <?php echo htmlspecialchars(($reservationSelectionnee['prenom'] ?? '') . ' ' . ($reservationSelectionnee['nom'] ?? '')); ?></li>
       <li><strong>Nombre de personnes:</strong> <?php echo $reservationSelectionnee['nbpers']; ?></li>
     </ul>
 

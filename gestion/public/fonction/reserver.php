@@ -6,28 +6,39 @@ require_once __DIR__ . "/../../vendor/autoload.php";
 use gestion\pdo\Database;
 use gestion\repo\TableRepository;
 use gestion\repo\ReservationRepository;
+use gestion\repo\ServerRepository;
 
 $message = "";
 $messageType = "";
 $tablesDisponibles = [];
+$serveurs = [];
+
+// Récupérer les serveurs
+try {
+    Database::beginTransaction();
+    $serveurs = ServerRepository::obtenirTousLesServeurs();
+    Database::commit();
+} catch (Exception $e) {
+    Database::rollback();
+}
 
 // Traiter la soumission du formulaire de réservation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reserver') {
     try {
         $numtab = (int)$_POST['numtab'] ?? 0;
-        $serveur = htmlspecialchars($_POST['serveur'] ?? '');
+        $numserv = (int)$_POST['numserv'] ?? 0;
         $date = htmlspecialchars($_POST['date'] ?? '');
         $heure = htmlspecialchars($_POST['heure'] ?? '');
         $nbPersonnes = (int)$_POST['nbPersonnes'] ?? 0;
 
-        if (!$numtab || !$serveur || !$date || !$heure || !$nbPersonnes) {
+        if (!$numtab || !$numserv || !$date || !$heure || !$nbPersonnes) {
             throw new Exception("Veuillez remplir tous les champs");
         }
 
         $dateHeure = "$date $heure:00";
 
         Database::beginTransaction();
-        $numReservation = ReservationRepository::creeReservation($numtab, $serveur, $dateHeure, $nbPersonnes);
+        $numReservation = ReservationRepository::creeReservation($numtab, $numserv, $dateHeure, $nbPersonnes);
         Database::commit();
 
         $message = "Réservation créée avec succès ! Numéro: #$numReservation";
@@ -133,7 +144,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <input type="hidden" name="date" value="<?= $dateDisponibilite; ?>">
                 <input type="hidden" name="heure" value="<?= $heureDisponibilite; ?>">
                 <input type="hidden" name="nbPersonnes" value="<?= $nbPersonnesDisponibilite; ?>">
-                <input type="text" name="serveur" placeholder="Nom du serveur" required>
+                <select name="numserv" required>
+                  <option value="">-- Sélectionner un serveur --</option>
+                  <?php foreach ($serveurs as $serveur): ?>
+                    <option value="<?= $serveur['numserv']; ?>" 
+                      <?= (isset($_SESSION['numserv']) && $_SESSION['numserv'] == $serveur['numserv']) ? 'selected' : ''; ?>>
+                      <?= htmlspecialchars($serveur['prenom'] . ' ' . $serveur['nom']); ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
                 <button type="submit" class="btn-success">Réserver</button>
               </form>
             </td>

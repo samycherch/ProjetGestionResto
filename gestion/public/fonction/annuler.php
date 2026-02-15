@@ -75,7 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 try {
     Database::beginTransaction();
     $pdo = Database::getConnection();
-    $stmt = $pdo->query("SELECT * FROM reservation WHERE datpaie IS NULL ORDER BY datres");
+    $stmt = $pdo->query("SELECT r.*, s.prenom, s.nom, s.image FROM reservation r 
+                         LEFT JOIN serveur s ON r.numserv = s.numserv 
+                         WHERE r.datpaie IS NULL ORDER BY r.datres");
     $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
     Database::commit();
 } catch (Exception $e) {
@@ -132,7 +134,7 @@ try {
             <td><strong>#<?= $res['numres']; ?></strong></td>
             <td>Table <?= $res['numtab']; ?></td>
             <td><?= date('d/m/Y H:i', strtotime($res['datres'])); ?></td>
-            <td><?= htmlspecialchars($res['serveur']); ?></td>
+            <td><?= htmlspecialchars(($res['prenom'] ?? '') . ' ' . ($res['nom'] ?? '')); ?></td>
             <td><?= $res['nbpers']; ?></td>
             <td>
               <?php if ($aDesCommandes): ?>
