@@ -267,4 +267,27 @@ class ReservationRepository
             'montcom' => $montcom,
         ]);
     }
+
+    public static function obtenirReservationsNonEncaisseesTransaction(): array
+    {
+        try {
+            Database::beginTransaction();
+            $reservations = self::obtenirReservationsNonEncaissees();
+            Database::commit();
+            return $reservations;
+        } catch (Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Récupère les réservations non encore encaissées (sans transaction - pour usage interne)
+     */
+    public static function obtenirReservationsNonEncaissees(): array
+    {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->query("SELECT * FROM reservation WHERE datpaie IS NULL ORDER BY datres");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

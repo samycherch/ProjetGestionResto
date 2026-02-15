@@ -1,9 +1,6 @@
 <?php
 session_start();
-
-require_once "src/pdo/Database.php";
-require_once "src/repo/ReservationRepository.php";
-require_once "src/repo/CommandeRepository.php";
+require_once __DIR__ . "/../../vendor/autoload.php";
 
 use gestion\pdo\Database;
 use gestion\repo\ReservationRepository;
@@ -20,6 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $numres = (int)$_POST['numres'] ?? 0;
     if ($numres > 0) {
         try {
+            Database::beginTransaction();
+            
             $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
             if (!$reservationSelectionnee) {
                 $message = "Réservation introuvable";
@@ -38,7 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $messageType = "error";
                 }
             }
+            
+            Database::commit();
         } catch (Exception $e) {
+            Database::rollback();
             $message = "Erreur: " . $e->getMessage();
             $messageType = "error";
         }
@@ -47,7 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Traiter l'encaissement
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'encaisser') {
-    $pdo = null;
     try {
         $numres = (int)$_POST['numres'] ?? 0;
         $modpaie = htmlspecialchars($_POST['modpaie'] ?? '');
@@ -69,8 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             throw new Exception("Le montant ne peut pas être négatif");
         }
 
-        // Obtenir la connexion PDO
-        $pdo = Database::getConnection();
+        // Démarrer une transaction
+        Database::beginTransaction();
 
         // Vérifier que la réservation existe et n'est pas déjà encaissée
         $reservation = ReservationRepository::obtenirReservationParId($numres);
@@ -82,15 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             throw new Exception("Cette réservation a déjà été encaissée");
         }
 
-        // S'assurer qu'aucune transaction n'est en cours
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-
-        // Démarrer une transaction
-        $pdo->beginTransaction();
-
         // Enregistrer l'encaissement avec la date/heure actuelle
+        $pdo = Database::getConnection();
         $datpaie = date('Y-m-d H:i:s');
         $stmt = $pdo->prepare(
             "UPDATE reservation SET datpaie = ?, modpaie = ?, montcom = ? WHERE numres = ?"
@@ -98,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->execute([$datpaie, $modpaie, $montcom, $numres]);
 
         // Valider la transaction
-        $pdo->commit();
+        Database::commit();
 
         $message = "Réservation #$numres encaissée avec succès ! Montant : " . number_format($montcom, 2) . " € (" . $modpaie . ")";
         $messageType = "success";
@@ -109,25 +103,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $montantTotal = 0;
 
     } catch (Exception $e) {
-        if ($pdo && $pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
+        Database::rollback();
         $message = "Erreur: " . $e->getMessage();
         $messageType = "error";
         
         // Garder la réservation sélectionnée en cas d'erreur
-        if ($numres) {
-            $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
-            $commandesDetail = CommandeRepository::obtenirCommandesReservation($numres);
-            $montantTotal = CommandeRepository::calculerMontantTotal($numres);
+        if (isset($numres) && $numres) {
+            try {
+                Database::beginTransaction();
+                $reservationSelectionnee = ReservationRepository::obtenirReservationParId($numres);
+                $commandesDetail = CommandeRepository::obtenirCommandesReservation($numres);
+                $montantTotal = CommandeRepository::calculerMontantTotal($numres);
+                Database::commit();
+            } catch (Exception $e2) {
+                Database::rollback();
+            }
         }
     }
 }
 
-// Récupérer les réservations non encore encaissées
-$pdo = Database::getConnection();
-$stmt = $pdo->query("SELECT * FROM reservation WHERE datpaie IS NULL ORDER BY datres");
-$reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Récupérer les réservations non encore encaissées avec leurs détails
+try {
+    Database::beginTransaction();
+    $pdo = Database::getConnection();
+    $stmt = $pdo->query("SELECT * FROM reservation WHERE datpaie IS NULL ORDER BY datres");
+    $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($reservationsNonPayees as &$res) {
+        $res['nb_commandes'] = CommandeRepository::compterPlatsCommandes($res['numres']);
+        $res['montant_total'] = CommandeRepository::calculerMontantTotal($res['numres']);
+    }
+    unset($res); // Libérer la référence
+    
+    Database::commit();
+} catch (Exception $e) {
+    Database::rollback();
+    $reservationsNonPayees = [];
+}
 
 ?>
 <!DOCTYPE html>
@@ -136,12 +148,13 @@ $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Encaisser une Réservation</title>
-  <link rel="stylesheet" href="ressources/css/style.css">
+  <link rel="stylesheet" href="../ressources/css/style.css?v=2.2">
 </head>
+<div class="container">
 <body>
   <h1>Encaisser une Réservation</h1>
   
-  <p><a href="index.php">Retour à l'accueil</a></p>
+  <p><a href="../index.php">Retour à l'accueil</a></p>
 
   <hr>
 
@@ -164,18 +177,14 @@ $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <select name="numres" required>
           <option value="">-- Sélectionner --</option>
           <?php foreach ($reservationsNonPayees as $res): ?>
-            <?php 
-              $nbCommandes = CommandeRepository::compterPlatsCommandes($res['numres']);
-              $montantRes = CommandeRepository::calculerMontantTotal($res['numres']);
-            ?>
             <option value="<?php echo $res['numres']; ?>" 
                     <?php echo ($reservationSelectionnee && $reservationSelectionnee['numres'] == $res['numres']) ? 'selected' : ''; ?>>
               #<?php echo $res['numres']; ?> - 
               Table <?php echo $res['numtab']; ?> - 
               <?php echo date('d/m/Y H:i', strtotime($res['datres'])); ?> - 
               <?php echo htmlspecialchars($res['serveur']); ?> - 
-              <?php echo $nbCommandes; ?> plat(s) - 
-              <?php echo number_format($montantRes, 2); ?> €
+              <?php echo $res['nb_commandes']; ?> plat(s) - 
+              <?php echo number_format($res['montant_total'], 2); ?> €
             </option>
           <?php endforeach; ?>
         </select>
@@ -287,4 +296,8 @@ $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
   </ul>
 
 </body>
+</div>
+<footer>
+  <p>&copy; <?= date('Y'); ?> Resto - Gestion des Réservations</p>
+  <p class="footer-small">Développé par Samy Cherchari et Nathan Yvon</p>
 </html>
