@@ -94,7 +94,9 @@ $reservationsNonPayees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Annuler une Réservation</title>
+  <link rel="stylesheet" href="ressources/css/style.css">
 </head>
 <body>
   <h1>Annuler une Réservation</h1>

@@ -118,7 +118,9 @@ $platsDisponibles = PlatRepository::obtenirPlatsDisponibles();
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Commander des Plats</title>
+  <link rel="stylesheet" href="ressources/css/style.css">
 </head>
 <body>
   <h1>Commander des Plats</h1>
