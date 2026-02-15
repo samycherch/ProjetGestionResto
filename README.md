@@ -18,11 +18,27 @@ Application web développée en PHP pour gérer les opérations d'un restaurant.
 
 ## Fonctionnalités Implémentées
 
+- ✅ Gestion complète des réservations de tables
+- ✅ Gestion des commandes de plats
+- ✅ Suivi des stocks de plats
+- ✅ Gestion des serveurs avec upload de photos
+- ✅ Paiement et encaissement
+- ✅ Annulation de réservations
+- ✅ Transactions ACID pour l'intégrité des données
+- ✅ Interface web intuitive et responsive
+
 ---
 
 ## Architecture Technique
 
 ### Structure de la Base de Données
+
+#### Table **SERVEUR**
+- `numserv` (INT, PK, AUTO_INCREMENT) : Identifiant unique du serveur
+- `nom` (VARCHAR) : Nom du serveur
+- `prenom` (VARCHAR) : Prénom du serveur
+- `image` (VARCHAR) : Chemin vers la photo du serveur
+- `actif` (TINYINT, DEFAULT 1) : Statut du serveur (1 = actif, 0 = désactivé)
 
 #### Table **TABL**
 - `numtab` (INT, PK, AUTO_INCREMENT) : Identifiant unique de la table
@@ -51,12 +67,13 @@ Application web développée en PHP pour gérer les opérations d'un restaurant.
 - `quantite` (INT) : Quantité commandée
 - **Clé composite** : (numres, numplat)
 
-### Modèles PHP
+### Modèles PHP et Repositories
 
-- **Tabl.php** : Gestion des tables du restaurant
-- **Reservation.php** : Gestion des réservations
-- **Commande.php** : Gestion des commandes
-- **Plat.php** : Gestion des plats et des stocks
+- **ServerRepository.php** : Gestion des serveurs (CRUD, upload images)
+- **TableRepository.php** : Gestion des tables du restaurant
+- **ReservationRepository.php** : Gestion des réservations
+- **CommandeRepository.php** : Gestion des commandes
+- **PlatRepository.php** : Gestion des plats et des stocks
 
 ---
 
@@ -176,12 +193,13 @@ collation = "utf8_unicode_ci"
 
 ### Fonctionnalités disponibles
 
-1. **Réserver une Table** - Vérifier les tables disponibles et créer une réservation
-2. **Commander des Plats** - Ajouter/supprimer des plats à une réservation
-3. **Consulter les Plats** - Voir tous les plats et leur disponibilité
-4. **Modifier les Plats** - Ajuster les prix et quantités disponibles
-5. **Encaisser** - Finaliser le paiement d'une réservation
-6. **Annuler** - Annuler une réservation et remettre les plats en stock
+1. **Gérer les Serveurs** - Créer, consulter et supprimer des serveurs avec photos (Pas demandé)
+2. **Réserver une Table** - Vérifier les tables disponibles et créer une réservation
+3. **Commander des Plats** - Ajouter/supprimer des plats à une réservation
+4. **Consulter les Plats** - Voir tous les plats et leur disponibilité
+5. **Modifier les Plats** - Ajuster les prix et quantités disponibles
+6. **Encaisser** - Finaliser le paiement d'une réservation
+7. **Annuler** - Annuler une réservation et remettre les plats en stock
    
 
 
@@ -196,7 +214,7 @@ gestion/
 ├── public/              # Point d'entrée (HTML/formulaires)
 │   ├── index.php        # Page d'accueil
 │   ├── fonction/        # Pages métier
-│   └── ressources/      # CSS, SQL
+│   └── ressources/      # CSS, SQL, images
 ├── src/
 │   ├── pdo/             # Database
 │   └── repo/            # Classes Table
